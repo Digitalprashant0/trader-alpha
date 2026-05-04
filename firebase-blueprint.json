@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and settings",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "settings": { "type": "object" }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "Trade": {
+      "title": "Trade",
+      "description": "Individual trade execution log",
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string" },
+        "type": { "type": "string", "enum": ["BUY", "SELL"] },
+        "entryPrice": { "type": "number" },
+        "exitPrice": { "type": "number" },
+        "quantity": { "type": "number" },
+        "entryTime": { "type": "string", "format": "date-time" },
+        "exitTime": { "type": "string", "format": "date-time" },
+        "grossPnL": { "type": "number" },
+        "charges": { "type": "number" },
+        "netPnL": { "type": "number" },
+        "setup": { "type": "string" },
+        "notes": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "screenshot": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["symbol", "type", "entryPrice", "quantity", "entryTime"]
+    },
+    "PortfolioItem": {
+      "title": "PortfolioItem",
+      "description": "Active position in the portfolio",
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string" },
+        "quantity": { "type": "number" },
+        "avgBuyPrice": { "type": "number" },
+        "currentPrice": { "type": "number" },
+        "investedValue": { "type": "number" },
+        "currentValue": { "type": "number" },
+        "unrealizedPnL": { "type": "number" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["symbol", "quantity", "avgBuyPrice"]
+    },
+    "FundingTransaction": {
+      "title": "FundingTransaction",
+      "description": "Contribution or platform deposit",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["STAKEHOLDER", "PLATFORM"] },
+        "source": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "source", "amount", "date"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/trades/{tradeId}": {
+      "schema": "Trade",
+      "description": "User trade log"
+    },
+    "/users/{userId}/portfolio/{symbolId}": {
+      "schema": "PortfolioItem",
+      "description": "User active positions"
+    },
+    "/users/{userId}/funding/{fundingId}": {
+      "schema": "FundingTransaction",
+      "description": "User funding and platform deposits"
+    }
+  }
+}

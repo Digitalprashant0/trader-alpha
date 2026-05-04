@@ -1,0 +1,58 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // User profile access
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId && isValidUser(request.resource.data);
+      allow update: if request.auth != null && request.auth.uid == userId && isValidUser(request.resource.data);
+    }
+
+    // Trade log access
+    match /users/{userId}/trades/{tradeId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId && isValidTrade(request.resource.data);
+      allow update: if request.auth != null && request.auth.uid == userId && isValidTrade(request.resource.data);
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Portfolio access
+    match /users/{userId}/portfolio/{symbolId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Funding access
+    match /users/{userId}/funding/{fundingId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId && isValidFunding(request.resource.data);
+      allow update: if request.auth != null && request.auth.uid == userId && isValidFunding(request.resource.data);
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      return data.email is string && 
+             data.email.size() < 256 &&
+             data.displayName is string;
+    }
+
+    function isValidTrade(data) {
+      return data.symbol is string && data.symbol.size() <= 128 &&
+             data.type in ['BUY', 'SELL'] &&
+             data.quantity is number && data.quantity > 0 &&
+             data.entryPrice is number && data.entryPrice >= 0;
+    }
+
+    function isValidFunding(data) {
+      return data.type in ['STAKEHOLDER', 'PLATFORM'] &&
+             data.source is string && data.source.size() <= 128 &&
+             data.amount is number && data.amount > 0;
+    }
+  }
+}
