@@ -19,7 +19,8 @@ import {
   Plus,
   MoreVertical,
   ExternalLink,
-  Calendar
+  Calendar,
+  X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns';
@@ -31,8 +32,14 @@ export function TradeLog() {
   const [filteredTrades, setFilteredTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -177,6 +184,17 @@ export function TradeLog() {
                  value={endDate}
                  onChange={e => setEndDate(e.target.value)}
                />
+               <button 
+                  onClick={() => {
+                    const now = new Date();
+                    setStartDate(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]);
+                    setEndDate(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
+                  }}
+                  className="pl-1 text-text-muted hover:text-text-primary transition-colors"
+                  title="Current Month"
+                >
+                  <X size={14} />
+                </button>
              </div>
              <button 
                 onClick={exportToCSV}

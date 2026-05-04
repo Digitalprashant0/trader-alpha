@@ -7,6 +7,7 @@ import { calculateAggregatedMetrics } from '../lib/calculations';
 import { MetricCard } from '../components/MetricCard';
 import { formatCurrency, formatPercent } from '../lib/formatters';
 import { cn, toSafeDate } from '../lib/utils';
+import { Calendar, Filter, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Line, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -39,6 +40,16 @@ export function Dashboard() {
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Date Filtering State
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
+
   useEffect(() => {
     if (!user) return;
 
@@ -66,11 +77,21 @@ export function Dashboard() {
     };
   }, [user]);
 
-  const metrics = calculateAggregatedMetrics(trades);
+  const filteredTrades = useMemo(() => {
+    return trades.filter(t => {
+      const tradeDate = toSafeDate(t.entryTime);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      return tradeDate >= start && tradeDate <= end;
+    });
+  }, [trades, startDate, endDate]);
+
+  const metrics = calculateAggregatedMetrics(filteredTrades);
 
   const activePortfolio = useMemo(() => {
     const items: PortfolioItem[] = [...portfolio];
-    const openTrades = trades.filter(t => !t.exitPrice);
+    const openTrades = filteredTrades.filter(t => !t.exitPrice);
     const tradesBySymbol: Record<string, { qty: number, cost: number }> = {};
     
     openTrades.forEach(t => {
@@ -98,25 +119,29 @@ export function Dashboard() {
       }
     });
     return items;
-  }, [portfolio, trades]);
+  }, [portfolio, filteredTrades]);
 
   // Prepare chart data
-  const closedTrades = [...trades].filter(t => t.exitPrice).sort((a, b) => {
-    const timeA = toSafeDate(a.exitTime || a.entryTime).getTime();
-    const timeB = toSafeDate(b.exitTime || b.entryTime).getTime();
-    return timeA - timeB;
-  });
+  const { equityLabels, equityData } = useMemo(() => {
+    const closedTrades = [...filteredTrades].filter(t => t.exitPrice).sort((a, b) => {
+      const timeA = toSafeDate(a.exitTime || a.entryTime).getTime();
+      const timeB = toSafeDate(b.exitTime || b.entryTime).getTime();
+      return timeA - timeB;
+    });
 
-  let cumulative = 0;
-  const equityData = closedTrades.map(t => {
-    cumulative += t.netPnL || 0;
-    return cumulative;
-  });
+    let cumulative = 0;
+    const data = closedTrades.map(t => {
+      cumulative += t.netPnL || 0;
+      return cumulative;
+    });
 
-  const equityLabels = closedTrades.map(t => {
-    const d = toSafeDate(t.exitTime || t.entryTime);
-    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-  });
+    const labels = closedTrades.map(t => {
+      const d = toSafeDate(t.exitTime || t.entryTime);
+      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    });
+
+    return { equityLabels: labels, equityData: data };
+  }, [filteredTrades]);
 
   const chartOptions: any = {
     responsive: true,
@@ -211,6 +236,51 @@ export function Dashboard() {
         </div>
       </header>
 
+      {/* Date Filter Bar */}
+      <div className="bg-white border border-border-subtle rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-bg-secondary rounded-lg text-text-muted">
+            <Filter size={16} />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-text-muted font-mono uppercase tracking-widest">Performance Range</p>
+            <p className="text-xs font-bold text-text-primary">
+              {new Date(startDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} - {new Date(endDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-bg-secondary rounded-xl px-3 py-1.5 border border-border-subtle">
+            <Calendar size={14} className="text-text-muted mr-2" />
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-transparent border-none outline-none text-xs font-mono text-text-primary uppercase"
+            />
+            <span className="mx-2 text-text-muted">→</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-transparent border-none outline-none text-xs font-mono text-text-primary uppercase"
+            />
+          </div>
+          <button 
+            onClick={() => {
+              const now = new Date();
+              setStartDate(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]);
+              setEndDate(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
+            }}
+            className="p-2 text-text-muted hover:text-text-primary transition-colors"
+            title="Current Month"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
         <MetricCard 
           label="Net P&L" 
@@ -262,7 +332,9 @@ export function Dashboard() {
               <p className="label-mono">Equity Curve</p>
               <p className="text-xs text-text-secondary">Cumulative Net Performance</p>
             </div>
-            <div className="text-xs font-mono text-text-muted">ALL TIME</div>
+            <div className="text-xs font-mono text-text-muted uppercase tracking-wider">
+              {new Date(startDate).toLocaleDateString('en-IN', { month: 'short' })} '{new Date(startDate).getFullYear().toString().slice(-2)}
+            </div>
           </div>
           <div className="h-[300px]">
             {equityData.length > 0 ? (
